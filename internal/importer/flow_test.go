@@ -4,14 +4,6 @@ import (
 	"testing"
 )
 
-type mockLister struct {
-	files []FileItem
-}
-
-func (m *mockLister) List(deviceUUID string) ([]FileItem, error) {
-	return m.files, nil
-}
-
 type mockDB struct {
 	imported map[string]int64
 }
@@ -28,9 +20,10 @@ func (m *mockDB) Insert(filename string, size int64, importedAt, targetPath stri
 
 func TestDeviceFlowSkipsImported(t *testing.T) {
 	files := []FileItem{
-		{Handle: "h1", Name: "IMG_1234.JPG", Size: 1000},
-		{Handle: "h2", Name: "IMG_1235.JPG", Size: 2000},
+		{Handle: "h1", Name: "IMG_1234.JPG", Size: 1000, Created: "2026-06-27T10:30:00Z"},
+		{Handle: "h2", Name: "IMG_1235.JPG", Size: 2000, Created: "2026-06-27T10:31:00Z"},
 	}
+	// Prefix for IMG_1234.JPG with date 2026-06-27 = "06_27_1234.jpg"
 	db := &mockDB{imported: map[string]int64{"06_27_1234.jpg": 1000}}
 
 	stats := DeviceFlow(DeviceFlowInput{

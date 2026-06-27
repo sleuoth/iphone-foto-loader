@@ -13,10 +13,6 @@ type DBClient interface {
 	Insert(filename string, size int64, importedAt, targetPath string) error
 }
 
-type ListClient interface {
-	List(deviceUUID string) ([]FileItem, error)
-}
-
 type DeviceStats struct {
 	Imported int
 	Skipped  int
@@ -63,16 +59,16 @@ func DeviceFlow(input DeviceFlowInput) DeviceStats {
 					Converter: input.Converter,
 				}).ImportLivePhotoPair(file, *pairFile, input.DeviceUUID, input.TargetRoot)
 
-				if result.Success {
-					for _, p := range result.TargetPaths {
-						prefixName := routing.PrefixFilename(file.Name, time.Now())
-						input.DB.Insert(prefixName, file.Size, time.Now().Format(time.RFC3339), p)
-					}
-					processed[file.Name] = true
-					processed[pairFile.Name] = true
-					stats.Imported++
-					continue
+			if result.Success {
+				for _, p := range result.TargetPaths {
+					prefixName := routing.PrefixFilename(file.Name, parseFileCreated(file.Created))
+					input.DB.Insert(prefixName, file.Size, time.Now().Format(time.RFC3339), p)
 				}
+				processed[file.Name] = true
+				processed[pairFile.Name] = true
+				stats.Imported++
+				continue
+			}
 
 				stats.Failed++
 				stats.Errors = append(stats.Errors, fmt.Sprintf("%s: %v", file.Name, result.Error))
@@ -82,7 +78,7 @@ func DeviceFlow(input DeviceFlowInput) DeviceStats {
 			}
 		}
 
-		prefixName := routing.PrefixFilename(file.Name, time.Now())
+		prefixName := routing.PrefixFilename(file.Name, parseFileCreated(file.Created))
 
 		if input.DB.IsImported(prefixName, file.Size) {
 			stats.Skipped++
@@ -118,4 +114,12 @@ func findFileByName(files []FileItem, name string) *FileItem {
 		}
 	}
 	return nil
+}
+
+func parseFileCreated(created string) time.Time {
+	t, err := time.Parse(time.RFC3339, created)
+	if err != nil {
+		return time.Now()
+	}
+	return t
 }
