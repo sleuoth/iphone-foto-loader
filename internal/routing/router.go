@@ -21,3 +21,32 @@ func PrefixFilename(originalName string, date time.Time) string {
 	prefix := date.Format("01_02_")
 	return prefix + base + ext
 }
+
+type RouteDecision struct {
+	IsCamera     bool
+	IsHEIC       bool
+	OriginalName string
+	CaptureDate  time.Time
+}
+
+func ComputeTargetPaths(d RouteDecision) []string {
+	year := d.CaptureDate.Format("2006")
+
+	if !d.IsCamera {
+		name := PrefixFilename(d.OriginalName, d.CaptureDate)
+		return []string{filepath.Join(year, "sonstiges", name)}
+	}
+
+	if d.IsHEIC {
+		jpegName := PrefixFilename(d.OriginalName, d.CaptureDate)
+		jpegName = strings.TrimSuffix(jpegName, filepath.Ext(jpegName)) + ".jpg"
+		heicName := PrefixFilename(d.OriginalName, d.CaptureDate)
+		return []string{
+			filepath.Join(year, jpegName),
+			filepath.Join(year, "heic", heicName),
+		}
+	}
+
+	name := PrefixFilename(d.OriginalName, d.CaptureDate)
+	return []string{filepath.Join(year, name)}
+}
