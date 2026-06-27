@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/sebastianleuoth/iphone-foto-loader/internal/config"
@@ -152,7 +153,7 @@ func (a *App) processDevice(client *helper.SubprocessClient, dev helper.Device, 
 	defer store.Close()
 
 	exifReader := &exifAdapter{reader: exif.NewSubprocessReader(lookupExiftool())}
-	conv := convert.NewSubprocessConverter("/usr/bin/sips", lookupExiftool())
+	conv := convert.NewSubprocessConverter(lookupSips(), lookupExiftool())
 
 	fileItems := make([]importer.FileItem, len(files))
 	for i, f := range files {
@@ -193,7 +194,22 @@ func lookupExiftool() string {
 			return p
 		}
 	}
+	if path, err := exec.LookPath("exiftool"); err == nil {
+		return path
+	}
 	return ""
+}
+
+func lookupSips() string {
+	if path, err := exec.LookPath("sips"); err == nil {
+		return path
+	}
+	for _, p := range []string{"/usr/bin/sips", "/usr/local/bin/sips"} {
+		if _, err := os.Stat(p); err == nil {
+			return p
+		}
+	}
+	return "sips"
 }
 
 type exifAdapter struct {
