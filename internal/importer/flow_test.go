@@ -1,19 +1,27 @@
 package importer
 
 import (
+	"os"
+	"sync"
 	"testing"
+	"time"
 )
 
 type mockDB struct {
+	mu       sync.Mutex
 	imported map[string]int64
 }
 
 func (m *mockDB) IsImported(filename string, size int64) bool {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	s, ok := m.imported[filename]
 	return ok && s == size
 }
 
 func (m *mockDB) Insert(filename string, size int64, importedAt, targetPath string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.imported[filename] = size
 	return nil
 }
@@ -110,5 +118,64 @@ func TestDeviceFlowStopsAfterMaxFiles(t *testing.T) {
 	}
 	if progress[2] != "IMG_0003.JPG" {
 		t.Errorf("last processed = %q, want IMG_0003.JPG", progress[2])
+	}
+}
+
+type concurrentHelper struct {
+	mu        sync.Mutex
+	active    int
+	maxActive int
+}
+
+func (m *concurrentHelper) Download(deviceUUID, handle, targetPath string) error {
+	m.mu.Lock()
+	m.active++
+	if m.active > m.maxActive {
+		m.maxActive = m.active
+	}
+	m.mu.Unlock()
+
+	time.Sleep(50 * time.Millisecond)
+	err := os.WriteFile(targetPath, []byte("bytes"), 0644)
+
+	m.mu.Lock()
+	m.active--
+	m.mu.Unlock()
+
+	return err
+}
+
+func (m *concurrentHelper) MaxActive() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.maxActive
+}
+
+func TestDeviceFlowRunsDownloadsInParallel(t *testing.T) {
+	files := []FileItem{
+		{Handle: "h1", Name: "IMG_0001.JPG", Size: 1000, Created: "2026-06-27T10:00:00Z"},
+		{Handle: "h2", Name: "IMG_0002.JPG", Size: 1001, Created: "2026-06-27T10:01:00Z"},
+		{Handle: "h3", Name: "IMG_0003.JPG", Size: 1002, Created: "2026-06-27T10:02:00Z"},
+		{Handle: "h4", Name: "IMG_0004.JPG", Size: 1003, Created: "2026-06-27T10:03:00Z"},
+	}
+	helper := &concurrentHelper{}
+
+	stats := DeviceFlow(DeviceFlowInput{
+		DeviceUUID:  "uuid",
+		TargetRoot:  t.TempDir(),
+		Files:       files,
+		DB:          &mockDB{imported: map[string]int64{}},
+		Helper:      helper,
+		EXIF:        &mockEXIFReader{info: &EXIFInfo{Make: "Apple", DateTimeOriginal: "2026:06:27 10:30:00"}},
+		Converter:   &mockConverter{},
+		MaxParallel: 3,
+		Progress:    func(current, total int, name string) {},
+	})
+
+	if stats.Imported != 4 {
+		t.Fatalf("imported = %d, want 4", stats.Imported)
+	}
+	if helper.MaxActive() < 2 {
+		t.Fatalf("max concurrent downloads = %d, want at least 2", helper.MaxActive())
 	}
 }

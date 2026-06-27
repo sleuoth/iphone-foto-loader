@@ -20,6 +20,7 @@ type App struct {
 	ConfigPath     string
 	TargetOverride string
 	Limit          int
+	Parallel       int
 }
 
 func ParseFlags() *App {
@@ -27,6 +28,7 @@ func ParseFlags() *App {
 	flag.StringVar(&app.ConfigPath, "config", defaultConfigPath(), "path to config.toml")
 	flag.StringVar(&app.TargetOverride, "target", "", "override target folder for single device")
 	flag.IntVar(&app.Limit, "limit", 0, "maximum files to process per device; 0 means unlimited")
+	flag.IntVar(&app.Parallel, "parallel", 1, "parallel import workers per device; capped at 10")
 	flag.Parse()
 	return app
 }
@@ -178,14 +180,15 @@ func (a *App) processDevice(client *helper.SubprocessClient, dev helper.Device, 
 	}
 
 	stats := importer.DeviceFlow(importer.DeviceFlowInput{
-		DeviceUUID: dev.UUID,
-		TargetRoot: deviceDir,
-		Files:      fileItems,
-		DB:         store,
-		Helper:     client,
-		EXIF:       exifReader,
-		Converter:  conv,
-		MaxFiles:   a.Limit,
+		DeviceUUID:  dev.UUID,
+		TargetRoot:  deviceDir,
+		Files:       fileItems,
+		DB:          store,
+		Helper:      client,
+		EXIF:        exifReader,
+		Converter:   conv,
+		MaxFiles:    a.Limit,
+		MaxParallel: normalizeParallel(a.Parallel),
 		Progress: func(current, total int, name string) {
 			fmt.Printf("[%d/%d] %s\n", current, total, name)
 		},
@@ -197,6 +200,16 @@ func (a *App) processDevice(client *helper.SubprocessClient, dev helper.Device, 
 	}
 
 	return nil
+}
+
+func normalizeParallel(n int) int {
+	if n < 1 {
+		return 1
+	}
+	if n > 10 {
+		return 10
+	}
+	return n
 }
 
 func lookupExiftool() string {

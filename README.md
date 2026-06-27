@@ -171,6 +171,7 @@ iphone-loader [flags]
 | `-config <pfad>` | `~/.config/iphone-loader/config.toml` | Pfad zur Config-Datei |
 | `-target <pfad>` | (leer) | Einmaliger Override des Zielordners (ohne Config-Speicherung) |
 | `-limit <n>` | `0` | Maximal zu verarbeitende Dateien pro Gerät; `0` bedeutet unbegrenzt |
+| `-parallel <n>` | `1` | Parallele Import-Worker pro Gerät; Werte über `10` werden auf `10` begrenzt |
 
 Beispiel:
 
@@ -183,6 +184,9 @@ Beispiel:
 
 # Testlauf mit nur 3 Dateien
 ./bin/iphone-loader -limit 3
+
+# Import mit 3 parallelen Workern
+./bin/iphone-loader -parallel 3
 ```
 
 ## Dateinamen-Regeln
