@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
@@ -38,6 +39,9 @@ func Load(path string) (*Config, error) {
 }
 
 func (c *Config) Save(path string) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
 	file, err := os.Create(path)
 	if err != nil {
 		return fmt.Errorf("create config: %w", err)

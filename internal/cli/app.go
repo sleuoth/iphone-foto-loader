@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -39,8 +40,15 @@ func defaultConfigPath() string {
 func (a *App) Run() int {
 	cfg, err := config.Load(a.ConfigPath)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if errors.Is(err, os.ErrNotExist) {
+			if err := os.MkdirAll(filepath.Dir(a.ConfigPath), 0755); err != nil {
+				fmt.Fprintf(os.Stderr, "error: create config dir: %v\n", err)
+				return 1
+			}
 			cfg = &config.Config{Devices: make(map[string]config.DeviceConfig)}
+			if err := cfg.Save(a.ConfigPath); err != nil {
+				fmt.Fprintf(os.Stderr, "warn: could not create default config: %v\n", err)
+			}
 		} else {
 			fmt.Fprintf(os.Stderr, "error: load config: %v\n", err)
 			return 1
