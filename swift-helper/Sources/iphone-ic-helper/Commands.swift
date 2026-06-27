@@ -28,9 +28,15 @@ enum Commands {
         }
 
         let manager = DeviceManager()
-        manager.list(deviceUUID: uuid) { response in
-            outputJSON(response)
-            exit(0)
+        manager.list(deviceUUID: uuid) { result in
+            switch result {
+            case .success(let response):
+                outputJSON(response)
+                exit(0)
+            case .failure(let error):
+                outputError(error.description)
+                exit(1)
+            }
         }
     }
 
