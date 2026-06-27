@@ -42,3 +42,20 @@ func Open(path string) (*Store, error) {
 func (s *Store) Close() error {
 	return s.db.Close()
 }
+
+func (s *Store) IsImported(filename string, size int64) bool {
+	var one int
+	err := s.db.QueryRow("SELECT 1 FROM imported WHERE filename=? AND size=?", filename, size).Scan(&one)
+	return err == nil
+}
+
+func (s *Store) Insert(filename string, size int64, importedAt, targetPath string) error {
+	_, err := s.db.Exec(
+		"INSERT OR IGNORE INTO imported (filename, size, imported_at, target_path) VALUES (?, ?, ?, ?)",
+		filename, size, importedAt, targetPath,
+	)
+	if err != nil {
+		return fmt.Errorf("insert imported: %w", err)
+	}
+	return nil
+}

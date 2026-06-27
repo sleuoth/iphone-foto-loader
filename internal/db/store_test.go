@@ -23,3 +23,49 @@ func TestOpenFailsOnInvalidPath(t *testing.T) {
 		t.Fatal("expected error for invalid path, got nil")
 	}
 }
+
+func TestIsImportedFalseForNewFile(t *testing.T) {
+	store, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	if store.IsImported("06_27_1234.jpg", 1000) {
+		t.Error("IsImported = true, want false for new file")
+	}
+}
+
+func TestIsImportedTrueAfterInsert(t *testing.T) {
+	store, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	err = store.Insert("06_27_1234.jpg", 1000, "2026-06-27T10:00:00Z", "2026/06_27_1234.jpg")
+	if err != nil {
+		t.Fatalf("Insert failed: %v", err)
+	}
+
+	if !store.IsImported("06_27_1234.jpg", 1000) {
+		t.Error("IsImported = false, want true after insert")
+	}
+}
+
+func TestIsImportedFalseForSameNameDifferentSize(t *testing.T) {
+	store, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+
+	err = store.Insert("06_27_1234.jpg", 1000, "2026-06-27T10:00:00Z", "2026/06_27_1234.jpg")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if store.IsImported("06_27_1234.jpg", 2000) {
+		t.Error("IsImported = true, want false for different size")
+	}
+}
