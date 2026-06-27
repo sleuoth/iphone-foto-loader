@@ -1,7 +1,12 @@
 package main
 
-import "fmt"
+import (
+	"os"
+
+	"github.com/sebastianleuoth/iphone-foto-loader/internal/cli"
+)
 
 func main() {
-	fmt.Println("iphone-loader: not yet implemented")
+	app := cli.ParseFlags()
+	os.Exit(app.Run())
 }
