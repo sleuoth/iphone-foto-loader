@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -165,4 +166,105 @@ func TestParseExifDateInvalid(t *testing.T) {
 	if err == nil {
 		t.Error("expected error for invalid date")
 	}
+}
+
+func TestImportLivePhotoPair(t *testing.T) {
+	dir := t.TempDir()
+	targetRoot := filepath.Join(dir, "archive")
+
+	helper := &mockHelper{downloadContent: []byte("bytes")}
+
+	imp := &Importer{
+		Helper:    helper,
+		EXIF:      &mockEXIFReader{info: &EXIFInfo{Make: "Apple", Model: "iPhone 15 Pro", DateTimeOriginal: "2026:06:27 10:30:00"}},
+		Converter: &mockConverter{},
+	}
+
+	heicFile := FileItem{
+		Handle:        "h1",
+		Name:          "IMG_1234.HEIC",
+		Size:          2000,
+		LivePhotoPair: strPtr("IMG_1234.MOV"),
+	}
+	movFile := FileItem{
+		Handle:        "h2",
+		Name:          "IMG_1234.MOV",
+		Size:          5000,
+		LivePhotoPair: strPtr("IMG_1234.HEIC"),
+	}
+
+	result, err := imp.ImportLivePhotoPair(heicFile, movFile, "test-uuid", targetRoot)
+	if err != nil {
+		t.Fatalf("ImportLivePhotoPair failed: %v", err)
+	}
+	if !result.Success {
+		t.Error("expected success")
+	}
+	if len(result.TargetPaths) != 3 {
+		t.Fatalf("target path count = %d, want 3 (jpeg + heic + mov)", len(result.TargetPaths))
+	}
+
+	jpegPath := filepath.Join(targetRoot, "2026", "06_27_1234.jpg")
+	heicPath := filepath.Join(targetRoot, "2026", "heic", "06_27_1234.heic")
+	movPath := filepath.Join(targetRoot, "2026", "06_27_1234.mov")
+	if result.TargetPaths[0] != jpegPath {
+		t.Errorf("jpeg path = %q, want %q", result.TargetPaths[0], jpegPath)
+	}
+	if result.TargetPaths[1] != heicPath {
+		t.Errorf("heic path = %q, want %q", result.TargetPaths[1], heicPath)
+	}
+	if result.TargetPaths[2] != movPath {
+		t.Errorf("mov path = %q, want %q", result.TargetPaths[2], movPath)
+	}
+
+	for _, p := range result.TargetPaths {
+		if _, err := os.Stat(p); os.IsNotExist(err) {
+			t.Errorf("file not created: %s", p)
+		}
+	}
+}
+
+func TestImportLivePhotoPairHEICFails(t *testing.T) {
+	dir := t.TempDir()
+	targetRoot := filepath.Join(dir, "archive")
+
+	helper := &failingHelper{}
+
+	imp := &Importer{
+		Helper:    helper,
+		EXIF:      &mockEXIFReader{info: &EXIFInfo{Make: "Apple", Model: "iPhone 15 Pro", DateTimeOriginal: "2026:06:27 10:30:00"}},
+		Converter: &mockConverter{},
+	}
+
+	heicFile := FileItem{
+		Handle: "h1",
+		Name:   "IMG_1234.HEIC",
+		Size:   2000,
+	}
+	movFile := FileItem{
+		Handle: "h2",
+		Name:   "IMG_1234.MOV",
+		Size:   5000,
+	}
+
+	result, err := imp.ImportLivePhotoPair(heicFile, movFile, "test-uuid", targetRoot)
+	if err != nil {
+		t.Fatalf("ImportLivePhotoPair returned error: %v", err)
+	}
+	if result.Success {
+		t.Error("expected failure when HEIC download fails")
+	}
+	if len(result.TargetPaths) != 0 {
+		t.Errorf("expected 0 target paths on failure, got %d", len(result.TargetPaths))
+	}
+}
+
+type failingHelper struct{}
+
+func (m *failingHelper) Download(deviceUUID, handle, targetPath string) error {
+	return fmt.Errorf("download failed")
+}
+
+func strPtr(s string) *string {
+	return &s
 }

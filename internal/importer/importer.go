@@ -131,3 +131,21 @@ func copyFile(src, dst string) error {
 	}
 	return os.WriteFile(dst, data, 0644)
 }
+
+func (imp *Importer) ImportLivePhotoPair(heicFile, movFile FileItem, deviceUUID, targetRoot string) (ImportResult, error) {
+	heicResult, err := imp.ImportFile(heicFile, deviceUUID, targetRoot)
+	if err != nil || !heicResult.Success {
+		return ImportResult{Success: false, Error: fmt.Errorf("heic part failed: %w", heicResult.Error)}, nil
+	}
+
+	movResult, err := imp.ImportFile(movFile, deviceUUID, targetRoot)
+	if err != nil || !movResult.Success {
+		for _, p := range heicResult.TargetPaths {
+			os.Remove(p)
+		}
+		return ImportResult{Success: false, Error: fmt.Errorf("mov part failed: %w", movResult.Error)}, nil
+	}
+
+	allPaths := append(heicResult.TargetPaths, movResult.TargetPaths...)
+	return ImportResult{Success: true, TargetPaths: allPaths}, nil
+}
