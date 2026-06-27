@@ -1,14 +1,13 @@
 package helper
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
 )
 
 func TestSubprocessClientIdentify(t *testing.T) {
-	stub := writeStubHelper(t, "identify", `{"devices":[{"uuid":"test-uuid","productName":"iPhone 15 Pro","deviceName":"Test iPhone","isTrusted":true}]}`)
+	stub := writeStubHelper(t, `{"devices":[{"uuid":"test-uuid","productName":"iPhone 15 Pro","deviceName":"Test iPhone","isTrusted":true}]}`)
 	client := NewSubprocessClient(stub)
 
 	devices, err := client.Identify()
@@ -24,7 +23,7 @@ func TestSubprocessClientIdentify(t *testing.T) {
 }
 
 func TestSubprocessClientList(t *testing.T) {
-	stub := writeStubHelper(t, "list", `{"files":[{"handle":"h1","name":"IMG_1234.HEIC","size":1000,"created":"2026-06-27T10:00:00Z","mimeType":"image/heic","livePhotoPair":null}]}`)
+	stub := writeStubHelper(t, `{"files":[{"handle":"h1","name":"IMG_1234.HEIC","size":1000,"created":"2026-06-27T10:00:00Z","mimeType":"image/heic","livePhotoPair":null}]}`)
 	client := NewSubprocessClient(stub)
 
 	files, err := client.List("test-uuid")
@@ -40,7 +39,7 @@ func TestSubprocessClientList(t *testing.T) {
 }
 
 func TestSubprocessClientIdentifyNoDevices(t *testing.T) {
-	stub := writeStubHelper(t, "identify", `{"devices":[]}`)
+	stub := writeStubHelper(t, `{"devices":[]}`)
 	client := NewSubprocessClient(stub)
 
 	devices, err := client.Identify()
@@ -60,7 +59,7 @@ func TestSubprocessClientHelperNotFound(t *testing.T) {
 	}
 }
 
-func writeStubHelper(t *testing.T, expectedSubcmd string, jsonResponse string) string {
+func writeStubHelper(t *testing.T, jsonResponse string) string {
 	t.Helper()
 	dir := t.TempDir()
 	stubPath := filepath.Join(dir, "stub-helper")
@@ -108,4 +107,3 @@ echo "fake-bytes" > "$TO"
 	}
 }
 
-var _ = json.Marshal // keep import
