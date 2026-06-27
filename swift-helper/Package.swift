@@ -3,6 +3,9 @@ import PackageDescription
 
 let package = Package(
     name: "iphone-ic-helper",
+    platforms: [
+        .macOS(.v10_15)
+    ],
     targets: [
         .executableTarget(
             name: "iphone-ic-helper",
