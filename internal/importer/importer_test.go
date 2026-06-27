@@ -265,6 +265,59 @@ func (m *failingHelper) Download(deviceUUID, handle, targetPath string) error {
 	return fmt.Errorf("download failed")
 }
 
+type twoPhaseHelper struct {
+	content      []byte
+	callCount    int
+	failOnSecond bool
+}
+
+func (m *twoPhaseHelper) Download(deviceUUID, handle, targetPath string) error {
+	m.callCount++
+	if m.failOnSecond && m.callCount == 2 {
+		return fmt.Errorf("download failed on second call")
+	}
+	return os.WriteFile(targetPath, m.content, 0644)
+}
+
 func strPtr(s string) *string {
 	return &s
+}
+
+func TestImportLivePhotoPairMOVFailsRollback(t *testing.T) {
+	dir := t.TempDir()
+	targetRoot := filepath.Join(dir, "archive")
+
+	helper := &twoPhaseHelper{content: []byte("bytes"), failOnSecond: true}
+
+	imp := &Importer{
+		Helper:    helper,
+		EXIF:      &mockEXIFReader{info: &EXIFInfo{Make: "Apple", Model: "iPhone 15 Pro", DateTimeOriginal: "2026:06:27 10:30:00"}},
+		Converter: &mockConverter{},
+	}
+
+	heicFile := FileItem{
+		Handle:        "h1",
+		Name:          "IMG_1234.HEIC",
+		Size:          2000,
+		LivePhotoPair: strPtr("IMG_1234.MOV"),
+	}
+	movFile := FileItem{
+		Handle:        "h2",
+		Name:          "IMG_1234.MOV",
+		Size:          5000,
+		LivePhotoPair: strPtr("IMG_1234.HEIC"),
+	}
+
+	result, err := imp.ImportLivePhotoPair(heicFile, movFile, "test-uuid", targetRoot)
+	if err != nil {
+		t.Fatalf("ImportLivePhotoPair returned error: %v", err)
+	}
+	if result.Success {
+		t.Error("expected failure when MOV download fails after HEIC succeeds")
+	}
+
+	jpegPath := filepath.Join(targetRoot, "2026", "06_27_1234.jpg")
+	if _, err := os.Stat(jpegPath); err == nil {
+		t.Error("JPEG should have been rolled back (deleted) when MOV failed")
+	}
 }

@@ -135,7 +135,11 @@ func copyFile(src, dst string) error {
 func (imp *Importer) ImportLivePhotoPair(heicFile, movFile FileItem, deviceUUID, targetRoot string) (ImportResult, error) {
 	heicResult, err := imp.ImportFile(heicFile, deviceUUID, targetRoot)
 	if err != nil || !heicResult.Success {
-		return ImportResult{Success: false, Error: fmt.Errorf("heic part failed: %w", heicResult.Error)}, nil
+		e := err
+		if e == nil {
+			e = heicResult.Error
+		}
+		return ImportResult{Success: false, Error: fmt.Errorf("heic part failed: %w", e)}, nil
 	}
 
 	movResult, err := imp.ImportFile(movFile, deviceUUID, targetRoot)
@@ -143,7 +147,11 @@ func (imp *Importer) ImportLivePhotoPair(heicFile, movFile FileItem, deviceUUID,
 		for _, p := range heicResult.TargetPaths {
 			os.Remove(p)
 		}
-		return ImportResult{Success: false, Error: fmt.Errorf("mov part failed: %w", movResult.Error)}, nil
+		e := err
+		if e == nil {
+			e = movResult.Error
+		}
+		return ImportResult{Success: false, Error: fmt.Errorf("mov part failed: %w", e)}, nil
 	}
 
 	allPaths := append(heicResult.TargetPaths, movResult.TargetPaths...)
