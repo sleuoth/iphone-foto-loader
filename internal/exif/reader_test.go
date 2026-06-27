@@ -82,3 +82,14 @@ func TestSubprocessReaderNotFound(t *testing.T) {
 		t.Fatal("expected error for missing exiftool, got nil")
 	}
 }
+
+func TestSubprocessReaderEmptyPathReturnsNoInfo(t *testing.T) {
+	reader := NewSubprocessReader("")
+	info, err := reader.Read("/tmp/fake.heic")
+	if err != nil {
+		t.Fatalf("expected no error for unconfigured exiftool, got %v", err)
+	}
+	if info != nil {
+		t.Fatalf("info = %#v, want nil", info)
+	}
+}

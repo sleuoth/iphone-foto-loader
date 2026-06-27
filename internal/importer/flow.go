@@ -28,6 +28,7 @@ type DeviceFlowInput struct {
 	Helper     HelperClient
 	EXIF       EXIFReader
 	Converter  Converter
+	MaxFiles   int
 	Progress   func(current, total int, name string)
 }
 
@@ -40,11 +41,16 @@ func DeviceFlow(input DeviceFlowInput) DeviceStats {
 
 	processed := make(map[string]bool)
 	total := len(input.Files)
+	processedCount := 0
 
 	for i, file := range input.Files {
 		if processed[file.Name] {
 			continue
 		}
+		if input.MaxFiles > 0 && processedCount >= input.MaxFiles {
+			break
+		}
+		processedCount++
 
 		if input.Progress != nil {
 			input.Progress(i+1, total, file.Name)

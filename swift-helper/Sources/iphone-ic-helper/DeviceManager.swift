@@ -162,13 +162,14 @@ class DeviceManager: NSObject, ICDeviceBrowserDelegate, ICDeviceDelegate {
             }
 
             if !camera.hasOpenSession {
-                camera.requestOpenSession { error in
+                self.requestOpenSessionWithRetry(camera: camera, attemptsRemaining: 5) { error in
                     if let error = error {
-                        FileHandle.standardError.write(Data("session error: \(error)\n".utf8))
+                        FileHandle.standardError.write(Data("download: session error: \(error)\n".utf8))
                         self.browser.stop()
                         completion(false)
                         return
                     }
+                    FileHandle.standardError.write(Data("download: session opened\n".utf8))
                     self.performDownload(camera: camera, handle: handle, toPath: toPath, completion: completion)
                 }
             } else {

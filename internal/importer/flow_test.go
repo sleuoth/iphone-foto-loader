@@ -73,3 +73,42 @@ func TestDeviceFlowSortsByDate(t *testing.T) {
 		t.Errorf("first processed = %q, want IMG_1234.JPG (older)", order[0])
 	}
 }
+
+func TestDeviceFlowStopsAfterMaxFiles(t *testing.T) {
+	files := []FileItem{
+		{Handle: "h1", Name: "IMG_0001.JPG", Size: 1000, Created: "2026-06-27T10:00:00Z"},
+		{Handle: "h2", Name: "IMG_0002.JPG", Size: 1001, Created: "2026-06-27T10:01:00Z"},
+		{Handle: "h3", Name: "IMG_0003.JPG", Size: 1002, Created: "2026-06-27T10:02:00Z"},
+		{Handle: "h4", Name: "IMG_0004.JPG", Size: 1003, Created: "2026-06-27T10:03:00Z"},
+		{Handle: "h5", Name: "IMG_0005.JPG", Size: 1004, Created: "2026-06-27T10:04:00Z"},
+	}
+	db := &mockDB{imported: map[string]int64{}}
+
+	var progress []string
+	stats := DeviceFlow(DeviceFlowInput{
+		DeviceUUID: "uuid",
+		TargetRoot: t.TempDir(),
+		Files:      files,
+		DB:         db,
+		Helper:     &mockHelper{downloadContent: []byte("bytes")},
+		EXIF:       &mockEXIFReader{info: &EXIFInfo{Make: "Apple", DateTimeOriginal: "2026:06:27 10:30:00"}},
+		Converter:  &mockConverter{},
+		MaxFiles:   3,
+		Progress: func(current, total int, name string) {
+			progress = append(progress, name)
+		},
+	})
+
+	if stats.Imported != 3 {
+		t.Fatalf("imported = %d, want 3", stats.Imported)
+	}
+	if len(progress) != 3 {
+		t.Fatalf("progress calls = %d, want 3", len(progress))
+	}
+	if len(db.imported) != 3 {
+		t.Fatalf("db entries = %d, want 3", len(db.imported))
+	}
+	if progress[2] != "IMG_0003.JPG" {
+		t.Errorf("last processed = %q, want IMG_0003.JPG", progress[2])
+	}
+}

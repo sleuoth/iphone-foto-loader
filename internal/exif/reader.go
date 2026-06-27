@@ -27,6 +27,10 @@ func NewSubprocessReader(exiftoolPath string) *SubprocessReader {
 }
 
 func (r *SubprocessReader) Read(filePath string) (*Info, error) {
+	if r.exiftoolPath == "" {
+		return nil, nil
+	}
+
 	cmd := exec.Command(r.exiftoolPath, "-j", "-Make", "-Model", "-DateTimeOriginal", filePath)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout

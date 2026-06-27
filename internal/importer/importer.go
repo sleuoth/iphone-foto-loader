@@ -70,10 +70,10 @@ func (imp *Importer) ImportFile(file FileItem, deviceUUID, targetRoot string) (I
 	if info != nil && info.DateTimeOriginal != "" {
 		captureDate, err = parseExifDate(info.DateTimeOriginal)
 		if err != nil {
-			captureDate = time.Now()
+			captureDate = fallbackCaptureDate(file.Created)
 		}
 	} else {
-		captureDate = time.Now()
+		captureDate = fallbackCaptureDate(file.Created)
 	}
 
 	isCamera := info != nil && info.Make != ""
@@ -122,6 +122,13 @@ func (imp *Importer) ImportFile(file FileItem, deviceUUID, targetRoot string) (I
 
 func parseExifDate(s string) (time.Time, error) {
 	return time.Parse("2006:01:02 15:04:05", s)
+}
+
+func fallbackCaptureDate(created string) time.Time {
+	if t, err := time.Parse(time.RFC3339, created); err == nil {
+		return t
+	}
+	return time.Now()
 }
 
 func copyFile(src, dst string) error {

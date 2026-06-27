@@ -19,12 +19,14 @@ import (
 type App struct {
 	ConfigPath     string
 	TargetOverride string
+	Limit          int
 }
 
 func ParseFlags() *App {
 	app := &App{}
 	flag.StringVar(&app.ConfigPath, "config", defaultConfigPath(), "path to config.toml")
 	flag.StringVar(&app.TargetOverride, "target", "", "override target folder for single device")
+	flag.IntVar(&app.Limit, "limit", 0, "maximum files to process per device; 0 means unlimited")
 	flag.Parse()
 	return app
 }
@@ -183,6 +185,7 @@ func (a *App) processDevice(client *helper.SubprocessClient, dev helper.Device, 
 		Helper:     client,
 		EXIF:       exifReader,
 		Converter:  conv,
+		MaxFiles:   a.Limit,
 		Progress: func(current, total int, name string) {
 			fmt.Printf("[%d/%d] %s\n", current, total, name)
 		},

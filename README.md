@@ -16,9 +16,43 @@ Lokales macOS-Tool, das Fotos und Videos von einem per USB angesteckten iPhone a
 ## Voraussetzungen
 
 - macOS (getestet auf macOS 26.5.1, Apple Silicon)
-- Go 1.21+ (zum Bauen)
-- Swift 5.9+ (zum Bauen des Helpers, im Xcode Command Line Tools enthalten)
-- Optional: `exiftool` (`brew install exiftool`) für vollständigen Metadaten-Transfer ins JPEG
+- USB-Kabel zum iPhone und ein entsperrtes, vertrautes iPhone
+- Xcode Command Line Tools (enthalten Swift, `make`, `sips` und weitere macOS-Build-Tools)
+- Go 1.21+ zum Bauen des Go-CLI
+- `exiftool` für EXIF-Erkennung, korrekte Kamera-Klassifizierung und vollständigen Metadaten-Transfer in JPEG-Kopien
+- Homebrew ist empfohlen, um Go und exiftool zu installieren
+
+### Benötigte Tools installieren
+
+1. Xcode Command Line Tools installieren:
+
+```bash
+xcode-select --install
+```
+
+2. Homebrew installieren, falls noch nicht vorhanden:
+
+```bash
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+3. Go und exiftool installieren:
+
+```bash
+brew install go exiftool
+```
+
+4. Installation prüfen:
+
+```bash
+go version
+swift --version
+make --version
+sips --help >/dev/null && echo "sips ok"
+exiftool -ver
+```
+
+Hinweis: Der Import läuft auch ohne `exiftool`, aber dann kann das Tool Kamera-EXIF nicht lesen. Dateien landen dadurch eher unter `sonstiges/`, und JPEG-Kopien aus HEIC-Dateien bekommen nicht den vollständigen Metadaten-Transfer. Für den normalen Betrieb sollte `exiftool` installiert sein.
 
 ## Schnellstart
 
@@ -136,6 +170,7 @@ iphone-loader [flags]
 |------|----------|--------------|
 | `-config <pfad>` | `~/.config/iphone-loader/config.toml` | Pfad zur Config-Datei |
 | `-target <pfad>` | (leer) | Einmaliger Override des Zielordners (ohne Config-Speicherung) |
+| `-limit <n>` | `0` | Maximal zu verarbeitende Dateien pro Gerät; `0` bedeutet unbegrenzt |
 
 Beispiel:
 
@@ -145,6 +180,9 @@ Beispiel:
 
 # Einmalig anderen Ordner verwenden
 ./bin/iphone-loader -target /tmp/test-import
+
+# Testlauf mit nur 3 Dateien
+./bin/iphone-loader -limit 3
 ```
 
 ## Dateinamen-Regeln
@@ -268,15 +306,15 @@ iphone-loader
 
 iPhone anschließen, Trust-Dialog erscheint, "Vertrauen" + Code eingeben, dann erneut aufrufen.
 
-### JPEG hat keine/vollstandige Metadaten
+### JPEG hat keine/vollstandige Metadaten oder Dateien landen in `sonstiges/`
 
-Ohne `exiftool` nutzt das Tool nur `sips` fur die HEIC→JPEG-Konvertierung. `sips` ubertragt nur Basis-EXIF. Installation:
+Ohne `exiftool` kann das Tool keine EXIF-Daten aus der Staging-Datei lesen. Dann nutzt es das iPhone-Erstellungsdatum als Fallback, kann Kamera-Bilder aber nicht sicher von Screenshots/WhatsApp/sonstigen Bildern unterscheiden. Außerdem nutzt das Tool bei HEIC→JPEG nur `sips`; `sips` ubertragt nur Basis-EXIF. Installation:
 
 ```bash
 brew install exiftool
 ```
 
-Das HEIC-Original in `heic/` hat immer alle Metadaten — unabhangig von exiftool.
+Danach den Import neu starten. Das HEIC-Original in `heic/` hat immer alle Metadaten — unabhangig von exiftool.
 
 ### Download schlagt fehl
 
@@ -322,7 +360,7 @@ iphone-foto-loader/
 | `github.com/BurntSushi/toml` | TOML-Config parsen/schreiben |
 | `modernc.org/sqlite` | Pure-Go SQLite (kein cgo) |
 | `sips` | macOS-Boardmittel, HEIC→JPEG |
-| `exiftool` | Optional, Metadaten-Transfer |
+| `exiftool` | EXIF-Erkennung, Kamera-Klassifizierung, Metadaten-Transfer |
 
 ### Design-Dokumente
 

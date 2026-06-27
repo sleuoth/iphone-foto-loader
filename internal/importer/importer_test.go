@@ -142,6 +142,37 @@ func TestImportSonstiges(t *testing.T) {
 	}
 }
 
+func TestImportWithoutEXIFUsesFileCreatedDate(t *testing.T) {
+	dir := t.TempDir()
+	targetRoot := filepath.Join(dir, "archive")
+
+	imp := &Importer{
+		Helper:    &mockHelper{downloadContent: []byte("jpeg-bytes")},
+		EXIF:      &mockEXIFReader{info: nil},
+		Converter: &mockConverter{},
+	}
+
+	file := FileItem{
+		Handle:  "h1",
+		Name:    "IMG_0001.JPG",
+		Size:    1000,
+		Created: "2023-08-03T12:00:00Z",
+	}
+
+	result, err := imp.ImportFile(file, "test-uuid", targetRoot)
+	if err != nil {
+		t.Fatalf("ImportFile failed: %v", err)
+	}
+	if !result.Success {
+		t.Error("expected success")
+	}
+
+	expectedPath := filepath.Join(targetRoot, "2023", "sonstiges", "08_03_0001.jpg")
+	if result.TargetPaths[0] != expectedPath {
+		t.Errorf("target path = %q, want %q", result.TargetPaths[0], expectedPath)
+	}
+}
+
 func TestParseExifDate(t *testing.T) {
 	tests := []struct {
 		input string
