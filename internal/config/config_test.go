@@ -66,3 +66,72 @@ func TestLoadEmptyConfig(t *testing.T) {
 		t.Errorf("devices count = %d, want 0", len(cfg.Devices))
 	}
 }
+
+func TestSaveAndReload(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.toml")
+
+	cfg := &Config{
+		Helper:  HelperConfig{Path: "/usr/local/bin/iphone-ic-helper"},
+		Devices: map[string]DeviceConfig{},
+	}
+	cfg.Devices["new-uuid"] = DeviceConfig{
+		Name:   "Test iPhone",
+		Target: "/tmp/test-target",
+	}
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	reloaded, err := Load(configPath)
+	if err != nil {
+		t.Fatalf("Load after Save failed: %v", err)
+	}
+	if reloaded.Devices["new-uuid"].Name != "Test iPhone" {
+		t.Errorf("reloaded name = %q, want 'Test iPhone'", reloaded.Devices["new-uuid"].Name)
+	}
+	if reloaded.Devices["new-uuid"].Target != "/tmp/test-target" {
+		t.Errorf("reloaded target = %q, want '/tmp/test-target'", reloaded.Devices["new-uuid"].Target)
+	}
+}
+
+func TestSavePreservesExistingDevices(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.toml")
+	content := `
+[helper]
+path = "/usr/local/bin/iphone-ic-helper"
+
+[devices."existing-uuid"]
+name = "Existing iPhone"
+target = "/tmp/existing"
+`
+	if err := os.WriteFile(configPath, []byte(content), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.Devices["new-uuid"] = DeviceConfig{
+		Name:   "New iPhone",
+		Target: "/tmp/new",
+	}
+
+	if err := cfg.Save(configPath); err != nil {
+		t.Fatalf("Save failed: %v", err)
+	}
+
+	reloaded, err := Load(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(reloaded.Devices) != 2 {
+		t.Errorf("device count = %d, want 2", len(reloaded.Devices))
+	}
+	if reloaded.Devices["existing-uuid"].Name != "Existing iPhone" {
+		t.Errorf("existing device lost: %q", reloaded.Devices["existing-uuid"].Name)
+	}
+}

@@ -36,3 +36,17 @@ func Load(path string) (*Config, error) {
 	}
 	return &cfg, nil
 }
+
+func (c *Config) Save(path string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return fmt.Errorf("create config: %w", err)
+	}
+	defer file.Close()
+
+	encoder := toml.NewEncoder(file)
+	if err := encoder.Encode(c); err != nil {
+		return fmt.Errorf("encode config: %w", err)
+	}
+	return nil
+}
